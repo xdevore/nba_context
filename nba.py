@@ -8,33 +8,45 @@ import pandas as pd
 import argparse
 
 
-def call_last_ten(team_nickname):
-    print(team_nickname)
+def get_team_attributes(team_nickname):
     nba_teams = teams.get_teams()
-    given_team = None
+    team_attributes = None
     for team in nba_teams:
         if team['nickname'] == team_nickname:
-            given_team = team
-    last_ten = teamgamelogs.TeamGameLogs(last_n_games_nullable=10, season_nullable='2022-23', team_id_nullable=given_team['id']).get_dict()
-    last_ten_stats_list = last_ten['resultSets'][0]['rowSet']
-    date_cutoff = last_ten_stats_list[-1][5].index("T")
-    ten_game_date = last_ten_stats_list[-1][5][:date_cutoff]
-    ten_game_date = ten_game_date[5:7] + "/"  + ten_game_date[8:10] + "/" + ten_game_date[:4]
-    print(ten_game_date)
+            team_attributes = team
+    return team_attributes
+
+
+def get_last_n_date_and_print_record(n, team_attributes):
+    last_n = teamgamelogs.TeamGameLogs(last_n_games_nullable=n, season_nullable='2022-23', team_id_nullable=team_attributes['id']).get_dict()
+    last_n_stats_list = last_n['resultSets'][0]['rowSet']
+    date_cutoff = last_n_stats_list[-1][5].index("T")
+    n_game_date = last_n_stats_list[-1][5][:date_cutoff]
+    n_game_date = n_game_date[5:7] + "/"  + n_game_date[8:10] + "/" + n_game_date[:4]
     record = {"W":0, "L":0}
-    for game in last_ten_stats_list:
+    for game in last_n_stats_list:
         if game[7] == "W":
             record["W"] += 1
         else:
             record["L"] += 1
-    print(str(record["W"]) + "-" + str(record["L"]))
+    print("Last " + str(n) + " Record: " + str(record["W"]) + "-" + str(record["L"]))
+    return n_game_date
+
+
+def get_team_roster(team_attributes):
     time.sleep(2)
-    team_roster = commonteamroster.CommonTeamRoster(given_team['id'])
-    team_roster_list = team_roster.get_dict()['resultSets'][0]['rowSet']
-    for player in team_roster_list:
-        time.sleep(2)
-        print(player[3])
-        print(playergamelog.PlayerGameLog(player_id=player[-2], season='2022-23', date_from_nullable=ten_game_date).get_dict()["resultSets"])
+    team_roster = commonteamroster.CommonTeamRoster(team_attributes['id'])
+    team_roster_list_with_attributes = team_roster.get_dict()['resultSets'][0]['rowSet']
+    team_roster_list_names = []
+    for player in team_roster_list_with_attributes:
+        team_roster_list_names.append(player[3])
+    return team_roster_list_names
+
+
+def get_last_ten_player_stats(player, ten_game_date):
+    time.sleep(2)
+    print(player[3])
+    print(playergamelog.PlayerGameLog(player_id=player[-2], season='2022-23', date_from_nullable=ten_game_date).get_dict()["resultSets"])
 
 
 def get_odds(game_id, markets_list, date):
@@ -68,6 +80,7 @@ def get_player_markets(game_id, date):
 
 
 def main():
+    
     # Initialize parser
     parser = argparse.ArgumentParser()
     
@@ -81,15 +94,25 @@ def main():
     # Read arguments from command line
     args = parser.parse_args()
 
-    game_id = get_game_id(args.team1input, args.team2input, args.date)
+    # game_id = get_game_id(args.team1input, args.team2input, args.date)
 
-    markets_list = get_player_markets(game_id, args.date)
+    # markets_list = get_player_markets(game_id, args.date)
 
-    get_odds(game_id, markets_list, args.date)
+    # get_odds(game_id, markets_list, args.date)
 
-    # call_last_ten(args.team1input)
+    team1_attributes = get_team_attributes(args.team1input)
 
-    # call_last_ten(args.team2input)
+    team1_roster = get_team_roster(team1_attributes)
+
+    print(team1_roster)
+
+    n = 10
+
+    team1_last_n_date = get_last_n_date_and_print_record(n, team1_attributes)
+
+    print(team1_last_n_date)
+
+    # get_last_ten(args.team2input)
 
 
     
