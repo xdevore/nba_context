@@ -99,23 +99,27 @@ def main():
     # markets_list = get_player_markets(game_id, args.date)
 
     # get_odds(game_id, markets_list, args.date)
-
-    team1_attributes = get_team_attributes(args.team1input)
-
-    team1_roster = get_team_roster(team1_attributes)
-
-    print(team1_roster)
-
+    
     n = 10
 
+    print("\n" + args.team1input + ":")
+    team1_attributes = get_team_attributes(args.team1input)
     team1_last_n_date = get_last_n_date_and_print_record(n, team1_attributes)
+    team1_roster = get_team_roster(team1_attributes)
 
+    print(team1_attributes)
     print(team1_last_n_date)
+    print(team1_roster)
 
-    # get_last_ten(args.team2input)
+    print("\n" + args.team2input + ":")
+    team2_attributes = get_team_attributes(args.team2input)
+    team2_last_n_date = get_last_n_date_and_print_record(n, team2_attributes)
+    team2_roster = get_team_roster(team2_attributes)
 
+    print(team2_attributes)
+    print(team2_last_n_date)
+    print(team2_roster)
 
-    
 
 if __name__ == "__main__":
     main()
