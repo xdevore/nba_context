@@ -37,17 +37,34 @@ def call_last_ten(team_nickname):
         print(playergamelog.PlayerGameLog(player_id=player[-2], season='2022-23', date_from_nullable=ten_game_date).get_dict()["resultSets"])
 
 
-def get_odds(team1, team2):
-    games_response = requests.get("https://api.prop-odds.com/beta/games/nba?date=2023-04-04&api_key=iUPX6GieMOK4F0CM8Gl5eVY9X0zmXRqCksKvPVClQ").json()
+def get_odds(game_id, markets_list, date):
+    for market in markets_list:
+        odds_response = requests.get("https://api.prop-odds.com/beta/odds/" + game_id + "/" + market + "?date=" + date + "&api_key=iUPX6GieMOK4F0CM8Gl5eVY9X0zmXRqCksKvPVClQ").json()
+        odds_response_list = odds_response['sportsbooks'][0]['market']['outcomes']
+        for value in odds_response_list:
+            print(value['name'])
+
+        
+
+def get_game_id(team1, team2, date):
+    games_response = requests.get("https://api.prop-odds.com/beta/games/nba?date=" + date + "&api_key=iUPX6GieMOK4F0CM8Gl5eVY9X0zmXRqCksKvPVClQ").json()
     games_list = games_response["games"]
     for game in games_list:
         if team1 in game['away_team'] or team2 in game['away_team']:
             game_id = game['game_id']
-    markets_response = requests.get("https://api.prop-odds.com/beta/markets/" + game_id + "?date=2023-04-04&api_key=iUPX6GieMOK4F0CM8Gl5eVY9X0zmXRqCksKvPVClQ").json()
+            game
+            return game_id
+
+
+def get_player_markets(game_id, date):
+    markets_response = requests.get("https://api.prop-odds.com/beta/markets/" + game_id + "?date=" + date + "&api_key=iUPX6GieMOK4F0CM8Gl5eVY9X0zmXRqCksKvPVClQ").json()
+    markets_list = []
     for market_dict in markets_response['markets']:
         market = market_dict['name']
-        odds_response = requests.get("https://api.prop-odds.com/beta/odds/" + game_id + "/" + market + "?date=2023-04-04&api_key=iUPX6GieMOK4F0CM8Gl5eVY9X0zmXRqCksKvPVClQ").json()
-        print(odds_response)
+        if 'player' in market:
+            markets_list.append(market)
+    return markets_list
+
 
 
 def main():
@@ -58,9 +75,17 @@ def main():
     parser.add_argument("-i", "--team1input", help = "Input team one")
 
     parser.add_argument("-j", "--team2input", help = "Input team two")
+
+    parser.add_argument("-d", "--date", help = "Date")
     
     # Read arguments from command line
     args = parser.parse_args()
+
+    game_id = get_game_id(args.team1input, args.team2input, args.date)
+
+    markets_list = get_player_markets(game_id, args.date)
+
+    get_odds(game_id, markets_list, args.date)
 
     # call_last_ten(args.team1input)
 
