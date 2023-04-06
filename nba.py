@@ -56,31 +56,70 @@ def get_last_n_player_stats(player, n_game_date):
 def create_stats_combined_roster_dict(combined_roster_list, matchup_last_n_dict):
     stats_combined_roster_dict = {}
     for player in combined_roster_list:
-        player_stats_dict = {'FG3M' : [], 'REB' : [], 'AST' : [], 'STL' : [], 'BLK' : [], 'TOV' : [], 'PTS' : []}
+        player_stats_dict = {'Made Threes' : [], 'Rebounds' : [], 'Assists' : [], 'Steals' : [], 'Blocks' : [], 'Turnovers' : [], 'Points' : [], 'Pts + Ast' : [], 'Pts + Reb + Ast' : [], 'Reb + Ast' : [], 'Pts + Reb' : [], 'Steals + Blocks' : []}
         player_last_n_date = matchup_last_n_dict[player[0]]
         player_stats_last_n = get_last_n_player_stats(player, player_last_n_date)
         player_stats_last_n_list = player_stats_last_n[0]['rowSet']
         for game in player_stats_last_n_list:
-            player_stats_dict['FG3M'].append(game[10])
-            player_stats_dict['REB'].append(game[18])
-            player_stats_dict['AST'].append(game[19])
-            player_stats_dict['STL'].append(game[20])
-            player_stats_dict['BLK'].append(game[21])
-            player_stats_dict['TOV'].append(game[22])
-            player_stats_dict['PTS'].append(game[24])
+            player_stats_dict['Made Threes'].append(game[10])
+            player_stats_dict['Rebounds'].append(game[18])
+            player_stats_dict['Assists'].append(game[19])
+            player_stats_dict['Steals'].append(game[20])
+            player_stats_dict['Blocks'].append(game[21])
+            player_stats_dict['Turnovers'].append(game[22])
+            player_stats_dict['Points'].append(game[24])
+            player_stats_dict['Pts + Ast'].append(game[19] + game[24])
+            player_stats_dict['Pts + Reb + Ast'].append(game[18] + game[19] + game[24])
+            player_stats_dict['Reb + Ast'].append(game[18] + game[19])
+            player_stats_dict['Pts + Reb'].append(game[18] + game[24])
+            player_stats_dict['Steals + Blocks'].append(game[20] + game[21])
         stats_combined_roster_dict[player[3]] = player_stats_dict
     return stats_combined_roster_dict
 
 
 def compare_odds(game_id, markets_list, date, stats_combined_roster_dict):
+    hit_dict = {}
     for market in markets_list:
         odds_response = requests.get("https://api.prop-odds.com/beta/odds/" + game_id + "/" + market + "?date=" + date + "&api_key=iUPX6GieMOK4F0CM8Gl5eVY9X0zmXRqCksKvPVClQ").json()
         odds_response_list = odds_response['sportsbooks'][0]['market']['outcomes']
         for outcome in odds_response_list:
-            description_split_list = outcome['description'].split('-')
-            odds_player_name = description_split_list[0][:-1]
-            odds_prop = description_split_list[1][1:]
+            if 'Under' in outcome['name'] or 'Alt' in outcome['description']:
+                continue
+            else:
+                if '-' in outcome['description']:
+                    description_split_list = outcome['description'].split('-')
+                    odds_player_name = description_split_list[0][:-1]
+                    odds_prop = description_split_list[1][1:]
+                    if "Alt" in odds_prop:
+                        odds_prop = odds_prop[4:]
+                    if odds_player_name in stats_combined_roster_dict.keys():
+                        total_hit = make_comparison(odds_player_name, stats_combined_roster_dict[odds_player_name], odds_prop, outcome)
+                        if total_hit['total_hit'] == "8/10" or total_hit['total_hit'] == "9/10" or total_hit['total_hit'] == "10/10":
+                            hit_dict[outcome['description']] = total_hit
+                else:
+                    if '+' in outcome['description']:
+                        description_split_list = outcome['description'].split(' ')
+                        if 'To' in description_split_list:
+                            odds_prop = description_split_list[3]
+                            odds_handicap = description_split_list[2][:-1]
+                            odds_info = {'handicap' : odds_handicap, 'name' : outcome['name']}
+                            if outcome['name'] in stats_combined_roster_dict.keys():
+                                total_hit = make_comparison(outcome['name'], stats_combined_roster_dict[outcome['name']], odds_prop, odds_info)
+                                if total_hit['total_hit'] == "8/10" or total_hit['total_hit'] == "9/10" or total_hit['total_hit'] == "10/10":
+                                    hit_dict[outcome['description']] = total_hit
+    return hit_dict
 
+
+def make_comparison(player_name, player_stats, odds_prop, odds_info):
+    hit = 0
+    total = 0
+    if 'Under' not in odds_info['name'] and 'First' not in odds_info['name']:
+        for value in player_stats[odds_prop]:
+            if int(value) >= float(odds_info['handicap']):
+                hit += 1
+            total += 1
+    total_hit = str(hit) + "/" + str(total)
+    return {'player name' : player_name, 'total_hit' : total_hit, 'handicap' : odds_info['handicap'], 'last_n' : player_stats[odds_prop]}
 
 
 def get_game_id(team1, team2, date):
@@ -89,7 +128,6 @@ def get_game_id(team1, team2, date):
     for game in games_list:
         if team1 in game['away_team'] or team2 in game['away_team']:
             game_id = game['game_id']
-            game
             return game_id
 
 
@@ -125,36 +163,38 @@ def main():
 
     n = 10
 
-    # print("\n" + args.team1input + ":")
-    # team1_attributes = get_team_attributes(args.team1input)
-    # team1_last_n_date = get_last_n_date_and_print_record(n, team1_attributes)
-    # team1_roster = get_team_roster(team1_attributes)
+    print("\n" + args.team1input + ":")
+    team1_attributes = get_team_attributes(args.team1input)
+    team1_last_n_date = get_last_n_date_and_print_record(n, team1_attributes)
+    team1_roster = get_team_roster(team1_attributes)
 
-    # # print(team1_attributes)
-    # # print(team1_last_n_date)
-    # # print(team1_roster)
+    # print(team1_attributes)
+    # print(team1_last_n_date)
+    # print(team1_roster)
 
-    # print("\n" + args.team2input + ":")
-    # team2_attributes = get_team_attributes(args.team2input)
-    # team2_last_n_date = get_last_n_date_and_print_record(n, team2_attributes)
-    # team2_roster = get_team_roster(team2_attributes)
+    print("\n" + args.team2input + ":")
+    team2_attributes = get_team_attributes(args.team2input)
+    team2_last_n_date = get_last_n_date_and_print_record(n, team2_attributes)
+    team2_roster = get_team_roster(team2_attributes)
 
-    # # print(team2_attributes)
-    # # print(team2_last_n_date)
-    # # print(team2_roster)
+    # print(team2_attributes)
+    # print(team2_last_n_date)
+    # print(team2_roster)
 
-    # matchup_last_n_dict = create_matchup_last_n_dict(team1_attributes, team1_last_n_date, team2_attributes, team2_last_n_date)
+    matchup_last_n_dict = create_matchup_last_n_dict(team1_attributes, team1_last_n_date, team2_attributes, team2_last_n_date)
 
-    # combined_roster_list = team1_roster + team2_roster
-    # # print("\n" + "Combined Roster:")
-    # # print(combined_roster_list)
+    combined_roster_list = team1_roster + team2_roster
+    # print("\n" + "Combined Roster:")
+    # print(combined_roster_list)
 
-    # stats_combined_roster_dict = create_stats_combined_roster_dict(combined_roster_list, matchup_last_n_dict)
-    # print(stats_combined_roster_dict)
+    stats_combined_roster_dict = create_stats_combined_roster_dict(combined_roster_list, matchup_last_n_dict)
 
-    test_stats_roster_dict = {'Caris LeVert': {'FG3M': [5, 2, 4, 1, 2, 2, 3, 1, 5, 4], 'REB': [3, 3, 4, 4, 1, 3, 2, 4, 3, 4], 'AST': [0, 4, 7, 3, 1, 2, 4, 3, 6, 7], 'STL': [1, 0, 1, 1, 1, 2, 2, 4, 1, 4], 'BLK': [0, 3, 1, 0, 0, 0, 0, 1, 0, 1], 'TOV': [1, 0, 2, 0, 2, 3, 1, 1, 2, 0], 'PTS': [19, 15, 15, 9, 10, 12, 18, 15, 24, 22]}, 'Evan Mobley': {'FG3M': [1, 0, 0, 0, 0, 0, 1, 0, 0, 0], 'REB': [7, 16, 7, 15, 7, 16, 4, 8, 12, 6], 'AST': [4, 4, 5, 6, 5, 3, 3, 3, 5, 2], 'STL': [1, 0, 0, 1, 1, 1, 1, 0, 1, 1], 'BLK': [1, 4, 3, 4, 3, 4, 0, 4, 2, 1], 'TOV': [0, 0, 0, 0, 3, 0, 3, 2, 1, 0], 'PTS': [14, 14, 14, 20, 19, 26, 17, 20, 13, 26]}}
+    hit_dict = compare_odds(game_id, markets_list, args.date, stats_combined_roster_dict)
 
-    compare_odds(game_id, markets_list, args.date, test_stats_roster_dict)
+    for key in hit_dict.keys():
+        print(key + ":")
+        print(hit_dict[key])
+        print('\n')
 
 
 if __name__ == "__main__":
